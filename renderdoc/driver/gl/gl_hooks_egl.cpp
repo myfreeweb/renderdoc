@@ -469,6 +469,7 @@ bool EGLHook::PopulateHooks()
     // on some android devices we need to hook dlsym, but eglGetProcAddress might call dlsym so we
     // need to ensure we return the 'real' pointers
     PosixScopedSuppressHooking suppress;
+    printf("Populating %s to %p\n", funcName, (void *)eglGetProcAddress(funcName));
     return (void *)eglGetProcAddress(funcName);
   });
 

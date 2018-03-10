@@ -12,6 +12,11 @@ elseif(ANDROID)
 elseif(UNIX)
     list(APPEND sources renderdoccmd_linux.cpp)
 
+    if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+        link_directories(/usr/local/lib)
+        list(APPEND libraries PRIVATE -liconv -lexecinfo)
+    endif()
+
     if(ENABLE_GL)
         find_package(OpenGL REQUIRED)
         list(APPEND includes PRIVATE ${OPENGL_INCLUDE_DIR})

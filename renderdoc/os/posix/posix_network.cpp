@@ -342,7 +342,7 @@ Socket *CreateTCPServerSocket(const char *bindaddr, uint16_t port, int queuesize
   int result = bind(s, (sockaddr *)&addr, sizeof(addr));
   if(result == -1)
   {
-    RDCWARN("Failed to bind to %s:%d - %d", bindaddr, port, errno);
+    RDCWARN("Failed to bind to %s:%d - %s", bindaddr, port, errno_string(errno).c_str());
     close(s);
     return NULL;
   }
@@ -350,7 +350,7 @@ Socket *CreateTCPServerSocket(const char *bindaddr, uint16_t port, int queuesize
   result = listen(s, queuesize);
   if(result == -1)
   {
-    RDCWARN("Failed to listen on %s:%d - %d", bindaddr, port, errno);
+    RDCWARN("Failed to listen on %s:%d - %s", bindaddr, port, errno_string(errno).c_str());
     close(s);
     return NULL;
   }

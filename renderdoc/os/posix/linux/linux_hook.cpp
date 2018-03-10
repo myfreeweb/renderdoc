@@ -36,6 +36,9 @@
 // until we've initialised, just skip any fancy stuff
 static uint32_t hookInited = 0;
 #define HOOK_MAGIC_NUMBER 0xAAF00F00
+#ifndef RTLD_DEEPBIND
+#define RTLD_DEEPBIND 0
+#endif
 
 void PosixHookInit()
 {

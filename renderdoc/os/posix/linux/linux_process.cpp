@@ -25,6 +25,14 @@
 #include <unistd.h>
 #include "os/os_specific.h"
 
+#ifdef __FreeBSD__
+#include <netinet/in.h>
+#include <sys/queue.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
+#include <libprocstat.h>
+#endif
+
 extern char **environ;
 
 #define INITIAL_WAIT_TIME 1
@@ -35,6 +43,7 @@ char **GetCurrentEnvironment()
   return environ;
 }
 
+#ifdef __linux__
 int GetIdentPort(pid_t childPid)
 {
   int ret = 0;
@@ -90,6 +99,74 @@ int GetIdentPort(pid_t childPid)
 
   return ret;
 }
+#elif __FreeBSD__
+int GetIdentPort(pid_t childPid)
+{
+  int ret = 0;
+  int waitTime = INITIAL_WAIT_TIME;
+
+  struct procstat *procstat = procstat_open_sysctl();
+
+  struct filestat_list *head = nullptr;
+  struct filestat *fst = nullptr;
+
+  unsigned int cnt;
+  struct kinfo_proc *kp = procstat_getprocs(procstat, KERN_PROC_PID, childPid, &cnt);
+  if(cnt != 1)
+  {
+    RDCWARN("Matched %d processes for pid %d instead of one", cnt, childPid);
+    ret = 0;
+    goto fail_procs;
+  }
+
+
+  // try for a little while for the /proc entry to appear
+  while(ret == 0 && waitTime <= MAX_WAIT_TIME)
+  {
+    // back-off for each retry
+    usleep(waitTime);
+
+    waitTime *= 2;
+
+    head = procstat_getfiles(procstat, kp, 0);
+
+    if(head == nullptr)
+      continue;
+
+    STAILQ_FOREACH(fst, head, next) {
+      if(fst->fs_type != PS_FST_TYPE_SOCKET)
+        continue;
+      struct sockstat sock;
+      char errbuf[_POSIX2_LINE_MAX];
+      if(procstat_get_socket_info(procstat, fst, &sock, errbuf) < 0)
+      {
+        RDCWARN("procstat_get_socket_info: %s", errbuf);
+        continue;
+      }
+      if(sock.proto != IPPROTO_TCP)
+        continue;
+      struct sockaddr_in *isock = reinterpret_cast<struct sockaddr_in*>(&sock.sa_local);
+      uint16_t port = ntohs(isock->sin_port);
+      if(sock.so_addr == 0 && port >= RenderDoc_FirstTargetControlPort
+          && port <= RenderDoc_LastTargetControlPort)
+        ret = port;
+    }
+
+    procstat_freefiles(procstat, head);
+  }
+fail_procs:
+  procstat_freeprocs(procstat, kp);
+  procstat_close(procstat);
+
+  if(ret == 0)
+  {
+    RDCWARN("Couldn't locate renderdoc target control listening port between %u and %u for pid %d",
+            (uint32_t)RenderDoc_FirstTargetControlPort, (uint32_t)RenderDoc_LastTargetControlPort, childPid);
+  }
+
+  return ret;
+}
+#endif
 
 // because OSUtility::DebuggerPresent is called often we want it to be
 // cheap. Opening and parsing a file would cause high overhead on each

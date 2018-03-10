@@ -309,6 +309,8 @@ void rdclog_filename(const char *filename)
   if(filename && filename[0])
     logfile = filename;
 
+  logfile = "/dev/stderr";
+
   FileIO::logfile_close(NULL);
 
   logfileOpened = false;
@@ -330,7 +332,7 @@ void rdclog_filename(const char *filename)
   }
 }
 
-static bool log_output_enabled = false;
+static bool log_output_enabled = true;
 
 void rdclog_enableoutput()
 {
@@ -339,7 +341,7 @@ void rdclog_enableoutput()
 
 void rdclog_closelog(const char *filename)
 {
-  log_output_enabled = false;
+  //log_output_enabled = false;
   FileIO::logfile_close(filename);
 }
 

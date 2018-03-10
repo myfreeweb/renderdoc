@@ -23,8 +23,16 @@ elseif(UNIX)
 
     list(APPEND RDOC_LIBRARIES
         PRIVATE -lm
-        PRIVATE -ldl
+        PRIVATE ${CMAKE_DL_LIBS}
         PRIVATE -lrt)
+
+    if(${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
+        list(APPEND RDOC_LIBRARIES
+            PRIVATE -lutil # kinfo_getvmmap
+            PRIVATE -lexecinfo # backtrace
+            PRIVATE -lprocstat)
+        set(RDOC_DEFINITIONS ${RDOC_DEFINITIONS} PRIVATE -DLIBICONV_PLUG) # use base libiconv
+    endif()
 
     if(ENABLE_XLIB)
         find_package(X11 REQUIRED)
@@ -39,14 +47,14 @@ elseif(UNIX)
     if(ENABLE_XCB)
         # This should be fixed and moved to FindXCB.cmake
         pkg_check_modules(PC_XCB REQUIRED xcb xcb-keysyms)
-        set(XCB_INCLUDE_DIRS)
-        set(XCB_LIBRARIES xcb xcb-keysyms)
 
         list(APPEND RDOC_INCLUDES
-            PRIVATE ${XCB_INCLUDE_DIRS})
+            PRIVATE ${PC_XCB_INCLUDE_DIRS})
 
         list(APPEND RDOC_LIBRARIES
-            PRIVATE -l${XCB_LIBRARIES})
+            PRIVATE ${PC_XCB_LIBRARIES})
+
+        link_directories(${PC_XCB_LIBRARY_DIRS})
     endif()
 endif()
 
@@ -412,7 +420,7 @@ target_link_libraries(renderdoc ${RDOC_LIBRARIES})
 add_dependencies(renderdoc renderdoc_libentry)
 
 if(UNIX AND NOT ANDROID AND NOT APPLE)
-    set_target_properties(renderdoc PROPERTIES LINK_FLAGS "-Wl,--undefined,force_include_libentry -Wl,--version-script,${CMAKE_CURRENT_SOURCE_DIR}/renderdoc.version -Wl,--no-undefined")
+    set_target_properties(renderdoc PROPERTIES LINK_FLAGS "-Wl,--undefined,force_include_libentry -Wl,--version-script,${CMAKE_CURRENT_SOURCE_DIR}/renderdoc.version")
 endif()
 
 if(ANDROID)

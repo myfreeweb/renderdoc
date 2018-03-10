@@ -30,6 +30,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#include <sys/user.h>
+#include <libutil.h>
+#endif
+
 #include "vk_core.h"
 #include "vk_replay.h"
 
@@ -239,8 +245,13 @@ string LayerRegistrationPath(LayerPath path)
 {
   switch(path)
   {
+#ifdef __FreeBSD__
+    case LayerPath::usr: return "/usr/local/share/vulkan/implicit_layer.d/renderdoc_capture.json";
+    case LayerPath::etc: return "/usr/local/etc/vulkan/implicit_layer.d/renderdoc_capture.json";
+#else
     case LayerPath::usr: return "/usr/share/vulkan/implicit_layer.d/renderdoc_capture.json";
     case LayerPath::etc: return "/etc/vulkan/implicit_layer.d/renderdoc_capture.json";
+#endif
     case LayerPath::home:
     {
       const char *xdg = getenv("XDG_DATA_HOME");
@@ -256,6 +267,7 @@ string LayerRegistrationPath(LayerPath path)
   return "";
 }
 
+#ifdef __linux__
 string GetThisLibPath()
 {
   string librenderdoc_path;
@@ -341,6 +353,23 @@ string GetThisLibPath()
 
   return librenderdoc_path;
 }
+#elif __FreeBSD__
+string GetThisLibPath()
+{
+  string librenderdoc_path;
+  int cnt;
+  struct kinfo_vmentry *entry = kinfo_getvmmap(getpid(), &cnt);
+
+  for(int i = 0; i < cnt; i++)
+  {
+    char *c = strstr(entry[i].kve_path, "/librenderdoc.so");
+    if(c)
+      librenderdoc_path = string(entry[i].kve_path);
+  }
+
+  return librenderdoc_path;
+}
+#endif
 
 void MakeParentDirs(std::string file)
 {

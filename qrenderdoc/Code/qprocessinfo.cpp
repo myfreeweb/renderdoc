@@ -144,7 +144,11 @@ QProcessList QProcessInfo::enumerate()
       QDir processDir(QStringLiteral("/proc/") + f);
 
       // default to the exe symlink if valid
+#ifdef __FreeBSD__
+      QFileInfo exe(processDir.absoluteFilePath(QStringLiteral("file")));
+#else
       QFileInfo exe(processDir.absoluteFilePath(QStringLiteral("exe")));
+#endif
       exe = QFileInfo(exe.symLinkTarget());
       info.setName(exe.completeBaseName());
 
